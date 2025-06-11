@@ -16,7 +16,7 @@ import objc
 from GlyphsApp import Glyphs, GSControlLayer, subtractPoints
 from GlyphsApp.plugins import *
 from Foundation import NSColor, NSPointInRect, NSPoint, NSRect, NSInsetRect
-from AppKit import NSEvent, NSEventModifierFlagControl
+from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand
 
 class KernIndicator(ReporterPlugin):
 
@@ -48,6 +48,10 @@ class KernIndicator(ReporterPlugin):
 		tabView = tab.graphicView()
 		if not tabView.doKerning():
 			# don't draw if kerning is off
+			return
+
+		# Don't show kerning values when Control and Command keys are held down simultaneously
+		if (NSEvent.modifierFlags() & NSEventModifierFlagControl) and (NSEvent.modifierFlags() & NSEventModifierFlagCommand):
 			return
 
 		positiveColor = NSColor.systemOrangeColor()
