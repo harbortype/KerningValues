@@ -39,7 +39,17 @@ class KernIndicator(ReporterPlugin):
 		scale = self.getScale()
 		if not 0.0299 < scale < 0.9001:
 			return
-			
+
+		font = layer.font()
+		if not font: # sometimes font is empty, don't know why
+			return
+
+		tab = font.currentTab
+		tabView = tab.graphicView()
+		if not tabView.doKerning():
+			# don't draw if kerning is off
+			return
+
 		positiveColor = NSColor.systemOrangeColor()
 		negativeColor = NSColor.systemBlueColor()
 		if hasattr(Glyphs, 'versionNumber') and Glyphs.versionNumber >= 3 :
@@ -55,12 +65,6 @@ class KernIndicator(ReporterPlugin):
 			pass
 
 		# go through tab content
-		glyph = layer.glyph()
-		font = layer.font()
-		if not font: # sometimes font is empty, don't know why
-			return
-		tab = font.currentTab
-		tabView = tab.graphicView()
 		layerCount = tabView.cachedLayerCount()
 		if layerCount>1:
 			viewPort = NSInsetRect(tab.viewPort,-20,-20)
