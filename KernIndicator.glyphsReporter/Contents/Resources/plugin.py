@@ -16,7 +16,7 @@ import objc
 from GlyphsApp import Glyphs, GSControlLayer, subtractPoints
 from GlyphsApp.plugins import *
 from Foundation import NSColor, NSPointInRect, NSPoint, NSRect, NSInsetRect
-from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand
+from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand, NSBezierPath
 
 class KernIndicator(ReporterPlugin):
 
@@ -86,15 +86,35 @@ class KernIndicator(ReporterPlugin):
 						rightGlyph = thisLayer.glyph()
 						if leftGlyph and rightGlyph:
 							kerningValue = font.kerningForFontMasterID_firstGlyph_secondGlyph_( thisMasterID, leftGlyph, rightGlyph )
-							if kerningValue and kerningValue < 10000: #notfound
+							kerningFound = kerningValue is not None and kerningValue < 10000 #notfound
+
+							independentPairs = thisLayer.master.userData["KernOnIndependentPairs"]
+							isIndependent = bool(independentPairs) and (leftGlyph.name + " " + rightGlyph.name) in independentPairs
+
+							if kerningFound or isIndependent:
 								offsetVector = subtractPoints(thisLayerPosition, activePosition)
-								textPoint = NSPoint( offsetVector.x/self.getScale() - 0.5*kerningValue, offsetVector.y/self.getScale() + offset )
-								if kerningValue < 0:
-									self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=negativeColor, align="bottomcenter" )
-								else:
-									self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=positiveColor, align="bottomcenter" )
+								textPoint = NSPoint( offsetVector.x/self.getScale() - 0.5*(kerningValue if kerningFound else 0), offsetVector.y/self.getScale() + offset )
+								if kerningFound and kerningValue != 0:
+									if kerningValue < 0:
+										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=negativeColor, align="bottomcenter" )
+									else:
+										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=positiveColor, align="bottomcenter" )
+								if isIndependent:
+									self.drawIndependentIndicator(textPoint)
 
 				previousLayer = thisLayer
+
+	@objc.python_method
+	def drawIndependentIndicator(self, textPoint):
+		scale = self.getScale()
+		lineLength = 7.0/scale
+		lineGap = 3.0/scale
+		x = textPoint.x
+		y1 = textPoint.y - lineGap
+		y2 = y1 - lineLength
+		NSColor.tertiaryLabelColor().set()
+		NSBezierPath.setDefaultLineWidth_(1.2/scale)
+		NSBezierPath.strokeLineFromPoint_toPoint_( NSPoint(x, y1), NSPoint(x, y2) )
 
 	@objc.python_method
 	def __file__(self):
