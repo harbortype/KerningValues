@@ -104,21 +104,23 @@ class KernIndicator(ReporterPlugin):
 									else:
 										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=textColor, align="bottomcenter" )
 								if isIndependent:
-									self.drawIndependentIndicator(textPoint)
+									if kerningFound and kerningValue != 0:
+										dotColor = negativeColor if kerningValue < 0 else positiveColor
+									else:
+										dotColor = NSColor.systemPinkColor()
+									self.drawIndependentIndicator(textPoint, dotColor)
 
 				previousLayer = thisLayer
 
 	@objc.python_method
-	def drawIndependentIndicator(self, textPoint):
+	def drawIndependentIndicator(self, textPoint, dotColor):
 		scale = self.getScale()
-		lineLength = 7.0/scale
-		lineGap = 3.0/scale
-		x = textPoint.x
-		y1 = textPoint.y - lineGap
-		y2 = y1 - lineLength
-		NSColor.tertiaryLabelColor().set()
-		NSBezierPath.setDefaultLineWidth_(1.2/scale)
-		NSBezierPath.strokeLineFromPoint_toPoint_( NSPoint(x, y1), NSPoint(x, y2) )
+		dotDiameter = 3.0/scale
+		dotGap = 1.0/scale
+		x = textPoint.x - 0.5*dotDiameter
+		y = textPoint.y - dotGap - dotDiameter
+		dotColor.set()
+		NSBezierPath.bezierPathWithOvalInRect_( NSRect((x, y), (dotDiameter, dotDiameter)) ).fill()
 
 	@objc.python_method
 	def drawBoldTextAtPoint(self, text, textPosition, fontSize=10.0, fontColor=NSColor.textColor(), align="bottomleft"):
