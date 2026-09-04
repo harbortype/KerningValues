@@ -93,6 +93,8 @@ class KernIndicator(ReporterPlugin):
 							isIndependent = bool(independentPairs) and pairName in independentPairs
 							modelPairs = thisLayer.master.userData["KernOnModels"]
 							isModelPair = bool(modelPairs) and pairName in modelPairs
+							userSetAutopairs = thisLayer.master.userData["KernOnUserSetAutopairs"]
+							isUserSetAutopair = bool(userSetAutopairs) and pairName in userSetAutopairs
 
 							if kerningFound or isIndependent:
 								offsetVector = subtractPoints(thisLayerPosition, activePosition)
@@ -103,6 +105,8 @@ class KernIndicator(ReporterPlugin):
 										self.drawBoldTextAtPoint( str(int(kerningValue)), textPoint, fontColor=textColor, align="bottomcenter" )
 									else:
 										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=textColor, align="bottomcenter" )
+									if isUserSetAutopair:
+										self.drawInvertedVIndicator( textPoint, textColor )
 								if isIndependent:
 									if kerningFound and kerningValue != 0:
 										dotColor = negativeColor if kerningValue < 0 else positiveColor
@@ -121,6 +125,24 @@ class KernIndicator(ReporterPlugin):
 		y = textPoint.y - dotGap - dotDiameter
 		dotColor.set()
 		NSBezierPath.bezierPathWithOvalInRect_( NSRect((x, y), (dotDiameter, dotDiameter)) ).fill()
+
+	@objc.python_method
+	def drawInvertedVIndicator(self, textPoint, lineColor):
+		scale = self.getScale()
+		width = 6.0/scale
+		height = 3.0/scale
+		gap = 1.0/scale
+		yTop = textPoint.y - gap
+		yBottom = yTop - height
+		xLeft = textPoint.x - 0.5*width
+		xRight = textPoint.x + 0.5*width
+		path = NSBezierPath.bezierPath()
+		path.moveToPoint_( NSPoint(xLeft, yBottom) )
+		path.lineToPoint_( NSPoint(textPoint.x, yTop) )
+		path.lineToPoint_( NSPoint(xRight, yBottom) )
+		path.setLineWidth_(1.0/scale)
+		lineColor.set()
+		path.stroke()
 
 	@objc.python_method
 	def drawBoldTextAtPoint(self, text, textPosition, fontSize=10.0, fontColor=NSColor.textColor(), align="bottomleft"):
