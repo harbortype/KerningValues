@@ -15,8 +15,8 @@ from __future__ import division, print_function, unicode_literals
 import objc
 from GlyphsApp import Glyphs, GSControlLayer, subtractPoints
 from GlyphsApp.plugins import *
-from Foundation import NSColor, NSPointInRect, NSPoint, NSRect, NSInsetRect
-from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand, NSBezierPath
+from Foundation import NSColor, NSPointInRect, NSPoint, NSRect, NSInsetRect, NSAttributedString
+from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand, NSBezierPath, NSFont, NSFontAttributeName, NSForegroundColorAttributeName
 
 class KernIndicator(ReporterPlugin):
 
@@ -88,17 +88,21 @@ class KernIndicator(ReporterPlugin):
 							kerningValue = font.kerningForFontMasterID_firstGlyph_secondGlyph_( thisMasterID, leftGlyph, rightGlyph )
 							kerningFound = kerningValue is not None and kerningValue < 10000 #notfound
 
+							pairName = leftGlyph.name + " " + rightGlyph.name
 							independentPairs = thisLayer.master.userData["KernOnIndependentPairs"]
-							isIndependent = bool(independentPairs) and (leftGlyph.name + " " + rightGlyph.name) in independentPairs
+							isIndependent = bool(independentPairs) and pairName in independentPairs
+							modelPairs = thisLayer.master.userData["KernOnModels"]
+							isModelPair = bool(modelPairs) and pairName in modelPairs
 
 							if kerningFound or isIndependent:
 								offsetVector = subtractPoints(thisLayerPosition, activePosition)
 								textPoint = NSPoint( offsetVector.x/self.getScale() - 0.5*(kerningValue if kerningFound else 0), offsetVector.y/self.getScale() + offset )
 								if kerningFound and kerningValue != 0:
-									if kerningValue < 0:
-										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=negativeColor, align="bottomcenter" )
+									textColor = negativeColor if kerningValue < 0 else positiveColor
+									if isModelPair:
+										self.drawBoldTextAtPoint( str(int(kerningValue)), textPoint, fontColor=textColor, align="bottomcenter" )
 									else:
-										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=positiveColor, align="bottomcenter" )
+										self.drawTextAtPoint( str(int(kerningValue)), textPoint, fontColor=textColor, align="bottomcenter" )
 								if isIndependent:
 									self.drawIndependentIndicator(textPoint)
 
@@ -115,6 +119,28 @@ class KernIndicator(ReporterPlugin):
 		NSColor.tertiaryLabelColor().set()
 		NSBezierPath.setDefaultLineWidth_(1.2/scale)
 		NSBezierPath.strokeLineFromPoint_toPoint_( NSPoint(x, y1), NSPoint(x, y2) )
+
+	@objc.python_method
+	def drawBoldTextAtPoint(self, text, textPosition, fontSize=10.0, fontColor=NSColor.textColor(), align="bottomleft"):
+		alignment = {
+			'topleft': 6,
+			'topcenter': 7,
+			'topright': 8,
+			'left': 3,
+			'center': 4,
+			'right': 5,
+			'bottomleft': 0,
+			'bottomcenter': 1,
+			'bottomright': 2
+		}
+		currentZoom = self.getScale()
+		fontAttributes = {
+			NSFontAttributeName: NSFont.boldSystemFontOfSize_(fontSize / currentZoom),
+			NSForegroundColorAttributeName: fontColor,
+		}
+		displayText = NSAttributedString.alloc().initWithString_attributes_(text, fontAttributes)
+		textAlignment = alignment.get(align, 6)
+		displayText.drawAtPoint_alignment_(textPosition, textAlignment)
 
 	@objc.python_method
 	def __file__(self):
