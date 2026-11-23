@@ -14,8 +14,8 @@ from __future__ import division, print_function, unicode_literals
 
 import objc
 from GlyphsApp import Glyphs, GSControlLayer, subtractPoints
-from GlyphsApp.plugins import *
-from Foundation import NSColor, NSPointInRect, NSPoint, NSRect, NSInsetRect, NSAttributedString
+from GlyphsApp.plugins import ReporterPlugin
+from Foundation import NSColor, NSPoint, NSRect, NSAttributedString
 from AppKit import NSEvent, NSEventModifierFlagControl, NSEventModifierFlagCommand, NSBezierPath, NSFont, NSFontAttributeName, NSForegroundColorAttributeName
 
 class KernIndicator(ReporterPlugin):
@@ -71,21 +71,32 @@ class KernIndicator(ReporterPlugin):
 		# go through tab content
 		layerCount = tabView.cachedLayerCount()
 		if layerCount>1:
-			viewPort = NSInsetRect(tab.viewPort,-20,-20)
-			viewPort.origin.y -= offset*scale
 			activePosition = tabView.activePosition()
-			previousLayer = tabView.cachedGlyphAtIndex_(0)
+			if Glyphs.versionNumber >= 4:
+				# Glyphs 4 renamed cachedGlyphAtIndex_ and added the writing direction to the kerning lookup
+				direction = tab.writingDirection()
+				previousLayer = tabView.cachedLayerAtIndex_(0)
+			else:
+				previousLayer = tabView.cachedGlyphAtIndex_(0)
 			for i in range(1,layerCount):
-				thisLayer = tabView.cachedGlyphAtIndex_(i)
+				if Glyphs.versionNumber >= 4:
+					thisLayer = tabView.cachedLayerAtIndex_(i)
+				else:
+					thisLayer = tabView.cachedGlyphAtIndex_(i)
 				thisLayerPosition = tabView.cachedPositionAtIndex_(i)
-				if NSPointInRect( thisLayerPosition, viewPort ) and type(thisLayer) != GSControlLayer and type(previousLayer) != GSControlLayer:
+				# no culling against tab.viewPort: in Glyphs 4 it left values only in a zone
+				# near the bottom center of the window (see forum report)
+				if not isinstance(thisLayer, GSControlLayer) and not isinstance(previousLayer, GSControlLayer):
 					previousMasterID = previousLayer.master.id
 					thisMasterID = thisLayer.master.id
 					if thisMasterID == previousMasterID:
 						leftGlyph = previousLayer.glyph()
 						rightGlyph = thisLayer.glyph()
 						if leftGlyph and rightGlyph:
-							kerningValue = font.kerningForFontMasterID_firstGlyph_secondGlyph_( thisMasterID, leftGlyph, rightGlyph )
+							if Glyphs.versionNumber >= 4:
+								kerningValue = font.kerningForFontMasterID_firstGlyph_secondGlyph_direction_( thisMasterID, leftGlyph, rightGlyph, direction )
+							else:
+								kerningValue = font.kerningForFontMasterID_firstGlyph_secondGlyph_( thisMasterID, leftGlyph, rightGlyph )
 							kerningFound = kerningValue is not None and kerningValue < 10000 #notfound
 
 							pairName = leftGlyph.name + " " + rightGlyph.name
